@@ -2,14 +2,20 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# Load the NBA player statistics dataset
-url = "https://drive.google.com/file/d/1GLG5k17RLeeFgFWS-ISxkjubnUu1cHJj/view?usp=drive_link"  # Ensure this path is correct
+# Load the NBA player statistics dataset from GitHub
+url = "https://raw.githubusercontent.com/username/repository/branch/filename.csv"  # Use the raw GitHub URL here
 
 # Load the dataset
 try:
     data = pd.read_csv(url)
 except FileNotFoundError:
     st.error("The dataset file was not found. Please check the file path.")
+    st.stop()
+except pd.errors.ParserError:
+    st.error("Error parsing the CSV file. Please check the file format.")
+    st.stop()
+except Exception as e:
+    st.error(f"An error occurred: {e}")
     st.stop()
 
 # Streamlit app starts here
@@ -49,6 +55,3 @@ st.pyplot(fig)
 # End of the app
 st.write("---")
 st.write("Built with Streamlit")
-
-
-
