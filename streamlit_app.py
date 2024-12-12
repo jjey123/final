@@ -18,7 +18,7 @@ st.write(
 @st.cache_data
 def load_data():
     """Load NBA dataset."""
-    return pd.read_csv("data/nba_data_processed.csv")
+    return pd.read_csv("/content/nba_data_processed.csv")
 
 # Load the dataset
 df = load_data()
