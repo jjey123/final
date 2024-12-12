@@ -1,57 +1,73 @@
-import streamlit as st
+import altair as alt
 import pandas as pd
-import matplotlib.pyplot as plt
+import streamlit as st
 
-# Load the NBA player statistics dataset from GitHub
-url = "https://raw.githubusercontent.com/jjey123/repository/branch/nba_data_processed.csv"  # Use the raw GitHub URL here
+# Set page configuration
+st.set_page_config(page_title="NBA Players Dataset", page_icon="🏀")
+
+# Page title and description
+st.title("🏀 NBA Players Dataset")
+st.write(
+    """
+    This app visualizes player statistics from the NBA dataset.
+    You can explore player performance based on their positions and ages!
+    """
+)
+
+# Load the data from a CSV file and cache it for performance
+@st.cache_data
+def load_data():
+    """Load NBA dataset."""
+    return pd.read_csv("data/nba_data_processed.csv")
 
 # Load the dataset
-try:
-    data = pd.read_csv(url)
-except FileNotFoundError:
-    st.error("The dataset file was not found. Please check the file path.")
-    st.stop()
-except pd.errors.ParserError:
-    st.error("Error parsing the CSV file. Please check the file format.")
-    st.stop()
-except Exception as e:
-    st.error(f"An error occurred: {e}")
-    st.stop()
+df = load_data()
 
-# Streamlit app starts here
-st.title("NBA Player Statistics Viewer")
-st.write("Explore NBA player statistics with filtering and visualization tools.")
+# Widgets for user interaction
+# Multiselect widget for selecting positions
+positions = st.multiselect(
+    "Select Positions:",
+    options=df["Pos"].unique(),
+    default=["C", "PG", "SG", "SF", "PF"],
+)
 
-# Display the raw data
-st.header("Dataset Overview")
-st.write("Here's a preview of the dataset:")
-st.dataframe(data)
+# Slider widget for selecting a range of ages
+ages = st.slider("Select Age Range:", 18, 40, (20, 30))
 
-# Check if necessary columns exist
-if 'Age' not in data.columns or 'PTS' not in data.columns:
-    st.error("The dataset must contain 'Age' and 'PTS' columns.")
-    st.stop()
+# Filter the dataframe based on user inputs
+df_filtered = df[(df["Pos"].isin(positions)) & (df["Age"].between(ages[0], ages[1]))]
 
-# Filter by age
-st.sidebar.header("Filters")
-min_age = st.sidebar.slider("Minimum Age", int(data["Age"].min()), int(data["Age"].max()), int(data["Age"].min()))
-max_age = st.sidebar.slider("Maximum Age", int(data["Age"].min()), int(data["Age"].max()), int(data["Age"].max()))
+# Reshape the filtered data for visualization
+df_reshaped = df_filtered.pivot_table(
+    index="Age", columns="Pos", values="PTS", aggfunc="mean", fill_value=0
+).sort_values(by="Age", ascending=True)
 
-# Filter the data
-filtered_data = data[(data["Age"] >= min_age) & (data["Age"] <= max_age)]
+# Display the reshaped data as a table
+st.dataframe(
+    df_reshaped,
+    use_container_width=True,
+    column_config={"Age": st.column_config.TextColumn("Age")},
+)
 
-st.header("Filtered Data")
-st.write(filtered_data)
+# Prepare data for chart visualization
+df_chart = pd.melt(
+    df_reshaped.reset_index(), id_vars="Age", var_name="Position", value_name="Average Points"
+)
 
-# Visualization: Points vs Age
-st.header("Points vs Age")
-fig, ax = plt.subplots()
-ax.scatter(filtered_data["Age"], filtered_data["PTS"], c="blue", alpha=0.7)
-ax.set_title("Points vs Age")
-ax.set_xlabel("Age")
-ax.set_ylabel("Points")
-st.pyplot(fig)
+# Create and display an Altair line chart
+chart = (
+    alt.Chart(df_chart)
+    .mark_line()
+    .encode(
+        x=alt.X("Age:N", title="Age"),
+        y=alt.Y("Average Points:Q", title="Average Points"),
+        color=alt.Color("Position:N", title="Position"),
+    )
+    .properties(height=320, width=600)
+    .configure_axisX(titleFontSize=14)
+    .configure_axisY(titleFontSize=14)
+    .configure_legend(labelFontSize=12)
+)
 
-# End of the app
-st.write("---")
-st.write("Built with Streamlit")
+# Render the chart
+st.altair_chart(chart, use_container_width=True)
